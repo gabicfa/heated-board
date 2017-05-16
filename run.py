@@ -1,23 +1,30 @@
+from math import sqrt
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import pylab
 
 
+K = 1  # aluminio
 ERROR = 0.0002
-LEFT_TEMP = 0.0
-RIGHT_TEMP = 0.0
+LEFT_TEMP = 75.0
+RIGHT_TEMP = 50.0
 BOT_TEMP = 0.0
 TOP_TEMP = 100.0
 BAR_TEMP = 0
 ALPHA = 1
-D_X = 0.1
-D_Y = 0.1
-D_T = 10 ** (-3)
+D_X = 1
+D_Y = 1
+D_T = 0.1
+FLUX_TOP = 0
+FLUX_LEFT = 0
+FLUX_RIGHT = 0
+FLUX_BOT = 0
 
 class TempCalculator2D:
 
-    def __init__(self, len_x, len_y, x_step, y_step, t_step, alpha):
+    def __init__(self, len_x, len_y, x_step, y_step, t_step, alpha, k,
+                 flux_top, flux_left, flux_right, flux_bot):
         self.x_step, self.y_step = x_step, y_step
         self.n_steps = int(len_x / x_step)
         self.len_x, self.len_y = len_x, len_y
@@ -26,6 +33,11 @@ class TempCalculator2D:
         self.create_matrix()
         self.temp_board = [self.board]
         self.error = [0]
+        self.k = k
+        self.flux_top = flux_top
+        self.flux_left = flux_left
+        self.flux_right = flux_right
+        self.flux_bot = flux_bot
 
     def create_matrix(self):
         self.board = []
@@ -41,6 +53,25 @@ class TempCalculator2D:
             self.board.append(arr)
         self.board.append([BOT_TEMP for x in range(self.n_steps + 1)])
 
+    def calculate_flux_2d(self, time_target, error_target):
+        curr_id = len(self.temp_board) - 1
+        if curr_id < time_target:
+            _board, _ = self.calculate_temp_2d(time_target, error_target)
+        else:
+            _board = self.temp_board[time_target]
+
+        flux = []
+        for i in range(self.n_steps):
+            line = []
+            for j in range(self.n_steps):
+                flux_x = -self.k * (_board[i + 1][j] - _board[i - 1][j]) /\
+                         (2 * self.x_step)
+                flux_y = -self.k * (_board[i + 1][j] - _board[i - 1][j]) /\
+                         (2 * self.x_step)
+                line.append(sqrt(flux_x ** 2 + flux_y ** 2))
+            flux.append(line)
+        return flux, error_target
+
     def calculate_temp_2d(self, time_target, error_target):
         curr_id = len(self.temp_board) - 1
         if curr_id < time_target:
@@ -52,11 +83,28 @@ class TempCalculator2D:
 
     def calc(self, j, error_target):
         _board = self.temp_board[j]
-        board = [[TOP_TEMP] * (self.n_steps + 1)]
+        flux, _ = self.calculate_flux_2d(j - 1, error_target)
+        top = [TOP_TEMP]
         for i in range(1, self.n_steps):
-            arr = [LEFT_TEMP]
+            if self.flux_top > 0:
+                tmp = self.f_0 * (2 * _board[1][i] - 2 * self.x_step * self.flux_top +
+                                _board[0][i + 1] + _board[0][i - 1]) + \
+                                (1 - 4 * self.f_0) * _board[0][i]
+            else:
+                tmp = TOP_TEMP
+            top.append(tmp)
+        top.append(TOP_TEMP)
+        board = [top]
+        for i in range(1, self.n_steps):
+            if self.flux_left > 0:
+                left = self.f_0 * (2 * _board[i][1] - 2 * self.y_step * self.flux_left +
+                                   _board[i + 1][0] + _board[i - 1][0]) + \
+                                   (1 - 4 * self.f_0) * _board[i][0]
+            else:
+                left = LEFT_TEMP
+            arr = [left]
             max_error = -1
-            for z in range(1, self.n_steps - 1):
+            for z in range(1, self.n_steps):
                 t_ij = self.f_0 * (_board[i + 1][z] + _board[i - 1][z] +
                                    _board[i][z + 1] + _board[i][z - 1]) +\
                                    (1 - 4 * self.f_0) * _board[i][z]
@@ -110,65 +158,37 @@ class TempCalculator:
         return self.temp_array[time_target]
 
 
-
-# fig, ax = plt.subplots()
-# x = range(10)
-# line, = ax.plot(x, temps[0])
-temps = []
-
-# def animate(i):
-#     line.set_ydata(temps[i])
-#     return line,
-
-# def init():
-#     line.set_ydata(temps[0])
-#     return line,
-
 def plot_color_gradients(gradient):
     """ Straight up stolen from Dias' group """
-    # gradient = np.array(gradient)
-    # gradient = [np.array(line) for line in gradient]
-    print(type(gradient))
-    print(type(gradient[0]))
-    gradient = np.array(gradient)
-    # print(gradient)
-    print(type(gradient))
-    print(type(gradient[0]))
-    gradient = np.delete(gradient, len(gradient) - 1, 0)
-    gradient = np.delete(gradient, len(gradient[0]) - 1, 1)
-    fig, ax = plt.subplots()
-    # fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
-    # ax.set_title('Titulo', fontsize=14)
-    ax.imshow(gradient, aspect='equal', cmap=plt.get_cmap('magma'))
-    ax.set_axis_off()
+    final = np.zeros((len(gradient), len(gradient[0])))
+    for x in range(len(gradient)):
+        for y in range(len(gradient[1])):
+            final[x, y] = gradient[x][y]
+    ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'))
 
-def plot(data):
-    # data = np.array([np.array(d, dtype=float) for d in data])
-    print(len(data), len(data[0]))
-    ndata = np.zeros((len(data), len(data[0])))
-    print(len(ndata), len(ndata[0]))
-    for i in range(len(ndata)):
-        for j in range(len(ndata[0])):
-            ndata[i, j] = data[i][j]
-    print(type(data))
-    print(type(data[0]))
-    pylab.pcolor(ndata)
-    pylab.colorbar()
-    pylab.show()
-    # fig, axes = plt.subplots(nrows=len(data[0]))
-    # fig.subplots_adjust(top=0.95, bottom=0.01, left=0.2, right=0.99)
-
-    # for ax in axes:
-    #     ax.imshow(data, aspect='auto', cmap=plt.get_cmap('inferno'))
-    #     ax.set_axis_off()
-
-calculator = TempCalculator2D(1, 1, D_X, D_Y, D_T, ALPHA)
-for i in range(10, 501, 10):
+calculator = TempCalculator2D(5, 5, D_X, D_Y, D_T, ALPHA, K,
+                              FLUX_TOP, FLUX_LEFT, FLUX_RIGHT, FLUX_BOT)
+temps = []
+for i in range(10, 101, 10):
     m = calculator.calculate_temp_2d(i, ERROR)
     temps.append(m[0])  # m[1] represents it's error
 
-# ani = animation.FuncAnimation(fig, animate, np.arange(1, 10), init_func=init,
-#                               interval=800, blit=True)
-# plot_color_gradients(m[0])
-plot_color_gradients(temps[len(temps) - 1])
+
+fig, ax = plt.subplots()
+fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
+ax.set_title('Titulo', fontsize=14)
+ax.set_axis_off()
+
+def animate(i):
+    plot_color_gradients(temps[i])
+
+def init():
+    plot_color_gradients(temps[0])
+
+
+init()
+ani = animation.FuncAnimation(fig, animate, np.arange(1, len(temps)),
+                              interval=200, repeat=True)
+
+print(temps[-1][2][1])
 plt.show()
