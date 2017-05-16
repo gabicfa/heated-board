@@ -19,7 +19,7 @@ D_T = 0.001
 FLUX_TOP = None
 FLUX_LEFT = None
 FLUX_RIGHT = None
-FLUX_BOT = 0
+FLUX_BOT = None
 
 class TempCalculator2D:
 
@@ -90,7 +90,7 @@ class TempCalculator2D:
         top = [TOP_TEMP]
         for i in range(1, self.n_steps):
             if self.flux_top != None:
-                tmp = self.f_0 * (2 * _board[1][i] - 2 * self.x_step * self.flux_top +
+                tmp = self.f_0 * (2 * _board[1][i] - 2 * self.y_step * self.flux_top +
                                 _board[0][i + 1] + _board[0][i - 1]) + \
                                 (1 - 4 * self.f_0) * _board[0][i]
             else:
@@ -100,7 +100,7 @@ class TempCalculator2D:
         board = [top]
         for i in range(1, self.n_steps):
             if self.flux_left != None:
-                left = self.f_0 * (2 * _board[i][1] - 2 * self.y_step * self.flux_left +
+                left = self.f_0 * (2 * _board[i][1] - 2 * self.x_step * self.flux_left +
                                    _board[i + 1][0] + _board[i - 1][0]) + \
                                    (1 - 4 * self.f_0) * _board[i][0]
             else:
@@ -120,7 +120,7 @@ class TempCalculator2D:
 
             if self.flux_right != None:
                 z = self.n_steps
-                right = self.f_0 * (2 * _board[i][z] - 2 * self.y_step *
+                right = self.f_0 * (2 * _board[i][z] - 2 * self.x_step *
                                     self.flux_right + _board[i + 1][z] +
                                     _board[i - 1][z]) + \
                                     (1 + 4 * self.f_0) * _board[i][z]
@@ -134,7 +134,7 @@ class TempCalculator2D:
         z = self.n_steps
         for i in range(1, self.n_steps):
             if self.flux_bot != None:
-                tmp = self.f_0 * (2 * _board[z][i] - 2 * self.x_step *
+                tmp = self.f_0 * (2 * _board[z - 1][i] - 2 * self.y_step *
                                   self.flux_bot + _board[z][i + 1] +
                                   _board[z][i - 1]) + \
                                   (1 + 4 * self.f_0) * _board[z][i]
@@ -193,7 +193,7 @@ def plot_color_gradients(gradient):
 calculator = TempCalculator2D(.4, .4, D_X, D_Y, D_T, ALPHA, K,
                               FLUX_TOP, FLUX_LEFT, FLUX_RIGHT, FLUX_BOT)
 temps = []
-for i in range(10000, 200001, 10000):
+for i in range(1, 201, 10):
     m = calculator.calculate_temp_2d(i, ERROR)
     temps.append(m[0])  # m[1] represents it's error
 
@@ -215,4 +215,5 @@ ani = animation.FuncAnimation(fig, animate, np.arange(1, len(temps)),
                               interval=200, repeat=True)
 
 print(temps[-1])
+# print(calculator.calculate_flux_2d(200, ERROR)[0])
 plt.show()
