@@ -53,6 +53,7 @@ class TempCalculator2D:
             self.board.append(arr)
         self.board.append([BOT_TEMP for x in range(self.n_steps + 1)])
 
+
     def calculate_flux_2d(self, time_target, error_target):
         curr_id = len(self.temp_board) - 1
         if curr_id < time_target:
@@ -72,6 +73,7 @@ class TempCalculator2D:
             flux.append(line)
         return flux, error_target
 
+
     def calculate_temp_2d(self, time_target, error_target):
         curr_id = len(self.temp_board) - 1
         if curr_id < time_target:
@@ -81,12 +83,13 @@ class TempCalculator2D:
                     break
         return self.temp_board[time_target], self.error[time_target]
 
+
     def calc(self, j, error_target):
         _board = self.temp_board[j]
         flux, _ = self.calculate_flux_2d(j - 1, error_target)
         top = [TOP_TEMP]
         for i in range(1, self.n_steps):
-            if self.flux_top > 0:
+            if self.flux_top != None:
                 tmp = self.f_0 * (2 * _board[1][i] - 2 * self.x_step * self.flux_top +
                                 _board[0][i + 1] + _board[0][i - 1]) + \
                                 (1 - 4 * self.f_0) * _board[0][i]
@@ -96,7 +99,7 @@ class TempCalculator2D:
         top.append(TOP_TEMP)
         board = [top]
         for i in range(1, self.n_steps):
-            if self.flux_left > 0:
+            if self.flux_left != None:
                 left = self.f_0 * (2 * _board[i][1] - 2 * self.y_step * self.flux_left +
                                    _board[i + 1][0] + _board[i - 1][0]) + \
                                    (1 - 4 * self.f_0) * _board[i][0]
@@ -114,10 +117,29 @@ class TempCalculator2D:
                     if curr_error > max_error:
                         max_error = curr_error
                 arr.append(t_ij)
-            arr.append(RIGHT_TEMP)
+
+            if self.flux_right != None:
+                right = self.f_0 * (2 * _board[i][self.n_steps] - 2 * self.y_step *
+                                    self.flux_right + _board[i + 1][self.n_steps] +
+                                    _board[i - 1][self.n_steps]) + \
+                                    (1 + 4 * self.f_0) * _board[i][self.n_steps]
+            else:
+                right = RIGHT_TEMP
+            arr.append(right)
             board.append(arr)
             self.error.append(max_error if max_error > 0 else 0)
-        board.append([BOT_TEMP] * (self.n_steps + 1))
+
+        bot = [BOT_TEMP]
+        for i in range(1, self.n_steps):
+            if self.flux_bot != None:
+                tmp = self.f_0 * (2 * _board[self.n_steps][i] - 2 * self.x_step *
+                                  self.flux_bot + _board[self.n_steps][i + 1] +
+                                  _board[self.n_steps][i - 1]) + \
+                                  (1 + 4 * self.f_0) * _board[self.n_steps][i]
+            else:
+                tmp = BOT_TEMP
+            bot.append(tmp)
+        board.append(bot)
         self.temp_board.append(board)
         return error_target <= max_error
 
