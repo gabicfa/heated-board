@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
-K = 1  # aluminio
+K = 1
 ERROR = 0.0002
 LEFT_TEMP = 75.0
 RIGHT_TEMP = 50.0
@@ -13,12 +13,12 @@ BOT_TEMP = 0.0
 TOP_TEMP = 100.0
 BAR_TEMP = 0
 ALPHA = 1
-D_X = 1
-D_Y = 1
-D_T = 0.1
-FLUX_TOP = 0
-FLUX_LEFT = 0
-FLUX_RIGHT = 0
+D_X = .1
+D_Y = .1
+D_T = 0.001
+FLUX_TOP = None
+FLUX_LEFT = None
+FLUX_RIGHT = None
 FLUX_BOT = 0
 
 class TempCalculator2D:
@@ -119,10 +119,11 @@ class TempCalculator2D:
                 arr.append(t_ij)
 
             if self.flux_right != None:
-                right = self.f_0 * (2 * _board[i][self.n_steps] - 2 * self.y_step *
-                                    self.flux_right + _board[i + 1][self.n_steps] +
-                                    _board[i - 1][self.n_steps]) + \
-                                    (1 + 4 * self.f_0) * _board[i][self.n_steps]
+                z = self.n_steps
+                right = self.f_0 * (2 * _board[i][z] - 2 * self.y_step *
+                                    self.flux_right + _board[i + 1][z] +
+                                    _board[i - 1][z]) + \
+                                    (1 + 4 * self.f_0) * _board[i][z]
             else:
                 right = RIGHT_TEMP
             arr.append(right)
@@ -130,15 +131,17 @@ class TempCalculator2D:
             self.error.append(max_error if max_error > 0 else 0)
 
         bot = [BOT_TEMP]
+        z = self.n_steps
         for i in range(1, self.n_steps):
             if self.flux_bot != None:
-                tmp = self.f_0 * (2 * _board[self.n_steps][i] - 2 * self.x_step *
-                                  self.flux_bot + _board[self.n_steps][i + 1] +
-                                  _board[self.n_steps][i - 1]) + \
-                                  (1 + 4 * self.f_0) * _board[self.n_steps][i]
+                tmp = self.f_0 * (2 * _board[z][i] - 2 * self.x_step *
+                                  self.flux_bot + _board[z][i + 1] +
+                                  _board[z][i - 1]) + \
+                                  (1 + 4 * self.f_0) * _board[z][i]
             else:
                 tmp = BOT_TEMP
             bot.append(tmp)
+        bot.append(BOT_TEMP)
         board.append(bot)
         self.temp_board.append(board)
         return error_target <= max_error
@@ -172,8 +175,8 @@ class TempCalculator:
                 _list = [BORDER_TEMP]
                 for i in range(1, self.n_steps - 1):
                     u_i = self.temp_array[j][i] + self.lamb * \
-                        (self.temp_array[j][i + 1] - 2 * self.temp_array[j][i] +
-                         self.temp_array[j][i - 1])
+                          (self.temp_array[j][i + 1] - 2 * self.temp_array[j][i] +
+                           self.temp_array[j][i - 1])
                     _list.append(u_i)
                 _list.append(BORDER_TEMP)
                 self.temp_array.append(_list)
@@ -181,17 +184,16 @@ class TempCalculator:
 
 
 def plot_color_gradients(gradient):
-    """ Straight up stolen from Dias' group """
     final = np.zeros((len(gradient), len(gradient[0])))
     for x in range(len(gradient)):
-        for y in range(len(gradient[1])):
+        for y in range(len(gradient[0])):
             final[x, y] = gradient[x][y]
     ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'))
 
-calculator = TempCalculator2D(5, 5, D_X, D_Y, D_T, ALPHA, K,
+calculator = TempCalculator2D(.4, .4, D_X, D_Y, D_T, ALPHA, K,
                               FLUX_TOP, FLUX_LEFT, FLUX_RIGHT, FLUX_BOT)
 temps = []
-for i in range(10, 101, 10):
+for i in range(10000, 200001, 10000):
     m = calculator.calculate_temp_2d(i, ERROR)
     temps.append(m[0])  # m[1] represents it's error
 
@@ -212,5 +214,5 @@ init()
 ani = animation.FuncAnimation(fig, animate, np.arange(1, len(temps)),
                               interval=200, repeat=True)
 
-print(temps[-1][2][1])
+print(temps[-1])
 plt.show()
