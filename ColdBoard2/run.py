@@ -37,10 +37,6 @@ class TempCalculator2D:
         self.f_0 = alpha * t_step / (len_step ** 2)
         if self.f_0 > 0.25:
             print("f0 muito grande")
-        # self.create_matrix()
-        # self.temp_board = [self.board]
-        # self.error = [0]
-        # self.k = k
         self.flux_top = flux_top
         self.flux_left = flux_left
         self.flux_right = flux_right
@@ -48,7 +44,6 @@ class TempCalculator2D:
         self.create_matrix_inicial()
         self.matrix_temps()
 
-        # self.arr_temps = []
 
     def create_matrix_inicial(self):
         self.board = [[0 for i in range (self.matrix_x)]for j in range (self.matrix_y)]
@@ -147,10 +142,10 @@ def plot_color_gradients(gradient):
             final[x, y] = gradient[x][y]
     ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'))
 
-# fig, ax = plt.subplots()
-# fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
-# ax.set_title('Titulo', fontsize=14)
-# ax.set_axis_off()
+fig, ax = plt.subplots()
+fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
+ax.set_title('Titulo', fontsize=14)
+ax.set_axis_off()
 
 def animate(i):
     plot_color_gradients(MATRIX_TESTE.arr_temps[i])
@@ -159,9 +154,9 @@ def init():
     plot_color_gradients(MATRIX_TESTE.arr_temps[0])
 
 
-# init()
-# ani = animation.FuncAnimation(fig, animate, np.arange(1, len(MATRIX_TESTE.arr_temps)),
-#                               interval=200, repeat=True)
+init()
+ani = animation.FuncAnimation(fig, animate, np.arange(1, len(MATRIX_TESTE.arr_temps)),
+                              interval=200, repeat=True)
 
 
-# plt.show()
+plt.show()
