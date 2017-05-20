@@ -47,7 +47,7 @@ class TempCalculator2D:
 
     def create_matrix_inicial(self):
         self.board = [[0 for i in range (self.matrix_x)]for j in range (self.matrix_y)]
-        for i in range(1,self.matrix_x-1):
+        for i in range(0,self.matrix_x):
             self.board[0][i] = TOP_TEMP
             self.board[self.matrix_y - 1][i] = BOT_TEMP
 
@@ -55,7 +55,7 @@ class TempCalculator2D:
         for i in range (1, self.matrix_y):
             self.board[i][0] = LEFT_TEMP
             self.board[i][self.matrix_x - 1] = RIGHT_TEMP
-
+        print(self.board)
 
 
     def matrix_temps(self):
@@ -75,13 +75,14 @@ class TempCalculator2D:
 
             for i in range (0, self.matrix_x):
                 for j in range(0, self.matrix_y):
-                    if i == 0  and j!=0 and j!= self.matrix_x-1:
+                    if i == 0:
                         if FLUX_TOP == None :
                             matrix_t1[i][j] = self.arr_temps[t-1][i][j]
                         else:
-                            matrix_t1[i][j] = self.f_0*(2*self.arr_temps[t-1][i+1][j]-
-                                            2*self.len_step*self.flux_top+self.arr_temps[t-1][i][j+1]+
-                                            self.arr_temps[t-1][i][j-1])+(1-4*self.f_0)*self.arr_temps[t-1][i][j]
+                            if j!=0 and j!= self.matrix_x-1:
+                                matrix_t1[i][j] = self.f_0*(2*self.arr_temps[t-1][i+1][j]-
+                                                2*self.len_step*self.flux_top+self.arr_temps[t-1][i][j+1]+
+                                                self.arr_temps[t-1][i][j-1])+(1-4*self.f_0)*self.arr_temps[t-1][i][j]
 
                     if j == 0 and i!=0 :
                         if FLUX_LEFT == None :
@@ -113,16 +114,16 @@ class TempCalculator2D:
                             self.arr_temps[t-1][i][j-1]+self.arr_temps[t-1][i-1][j]+
                             self.arr_temps[t-1][i+1][j])+(1-4*self.f_0)*self.arr_temps[t-1][i][j]
                             dif = abs(self.arr_temps[t-1][i][j] - matrix_t1[i][j])
-                            print("dif")
-                            print(dif)
+                            # print("dif")
+                            # print(dif)
                             if dif < curr_err and dif!=0:
                                 curr_err = dif
-                            print("curr_err")
-                            print(curr_err)
+                            # print("curr_err")
+                            # print(curr_err)
 
             self.arr_temps.append(matrix_t1)
             if curr_err <= ERROR:
-                print(t)
+                # print(t)
                 break
 
 
@@ -155,8 +156,8 @@ def init():
 
 
 init()
-ani = animation.FuncAnimation(fig, animate, np.arange(1, len(MATRIX_TESTE.arr_temps)),
-                              interval=200, repeat=True)
+ani = animation.FuncAnimation(fig, animate, np.arange(0, len(MATRIX_TESTE.arr_temps),10),
+                              interval=2, repeat=True)
 
 
 plt.show()
