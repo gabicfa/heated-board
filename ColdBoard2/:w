@@ -191,8 +191,8 @@ def plot_color_gradients(gradient, i):
 
 def plot_arrows(i):
     flux = MATRIX_TESTE.arr_flux[i]
-    for i in range(len(arrows)-1)[::-1]:
-        for j in range(len(arrows[0]))[::-1]:
+    for i in range(len(arrows),-1):
+        for j in range(len(arrows[0]),-1):
             if arrows[i][j] != 0:
                 arrows[i][j].remove()
     for i in range(1, len(flux) - 1):
