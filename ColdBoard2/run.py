@@ -193,7 +193,6 @@ fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
 ax.set_title('Temperatura na Placa ao Longo do Tempo', fontsize=14)
 ax.set_axis_off()
 
-
 init()
 
 ani = animation.FuncAnimation(fig, animate, np.arange(0, int (3*(len(MATRIX_TESTE.arr_temps))/4) ,350),
