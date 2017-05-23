@@ -179,13 +179,14 @@ def plot_color_gradients(gradient):
     for x in range(len(gradient)):
         for y in range(len(gradient[0])):
             final[x, y] = gradient[x][y]
-    ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'))
+    return ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'), vmin=0, vmax=100)
 
 def animate(i):
     plot_color_gradients(MATRIX_TESTE.arr_temps[i])
 
 def init():
-    plot_color_gradients(MATRIX_TESTE.arr_temps[0])
+    im = plot_color_gradients(MATRIX_TESTE.arr_temps[0])
+    plt.colorbar(im)
 
 fig, ax = plt.subplots()
 fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
