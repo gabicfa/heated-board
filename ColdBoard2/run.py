@@ -4,22 +4,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-LEFT_TEMP = 75.0
+LEFT_TEMP = 0.0
 RIGHT_TEMP = 50.0
 BOT_TEMP = 0.0
-TOP_TEMP = 100.0
+TOP_TEMP = 150.0
 
 FLUX_TOP = None
-FLUX_LEFT = None
+FLUX_LEFT = 0
 FLUX_RIGHT = None
-FLUX_BOT = 0
+FLUX_BOT = None
 
 T_TOTAL = 200
 T_STEP = 0.001
 
-LEN_X = 5
-LEN_Y = 5
-LEN_STEP = 1
+LEN_X = 4
+LEN_Y = 4
+LEN_STEP = 0.8
 
 K =1
 ALPHA = 1
@@ -56,6 +56,11 @@ class TempCalculator2D:
             self.board[i][0] = LEFT_TEMP
             self.board[i][self.matrix_x - 1] = RIGHT_TEMP
 
+        for i in self.board:
+            print(i)
+            print('\n')
+
+
     def matrix_temps(self):
         self.arr_temps=[]
 
@@ -81,7 +86,7 @@ class TempCalculator2D:
                                                 2*self.len_step*self.flux_top+self.arr_temps[t-1][i][j+1]+
                                                 self.arr_temps[t-1][i][j-1])+(1-4*self.f_0)*self.arr_temps[t-1][i][j]
 
-                    if j == 0 and i!=0 :
+                    if j == 0 and i!=0 and i!= self.matrix_x-1:
                         if FLUX_LEFT == None :
                             matrix_t1[i][j] = self.arr_temps[t-1][i][j]
                         else:
@@ -135,7 +140,7 @@ class TempCalculator2D:
                                         (2*self.len_step)
                                 flux_y = self.flux_top
 
-                    if j == 0 and i!=0 :
+                    if j == 0 and i!=0 and i!= self.matrix_x-1:
                         if FLUX_LEFT != None :
                             flux_y =  -self.k*(self.arr_temps[t-1][i+1][j]-self.arr_temps[t-1][i-1][j])/\
                                     (2*self.len_step)
@@ -195,6 +200,6 @@ ax.set_axis_off()
 
 init()
 
-ani = animation.FuncAnimation(fig, animate, np.arange(0, int (3*(len(MATRIX_TESTE.arr_temps))/4) ,350),
+ani = animation.FuncAnimation(fig, animate, np.arange(0, int (3*(len(MATRIX_TESTE.arr_temps))/4) ,300),
                               interval=200, repeat=True)
 plt.show()
