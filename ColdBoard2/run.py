@@ -4,26 +4,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-LEFT_TEMP = 75.0
+LEFT_TEMP = 0.0
 RIGHT_TEMP = 50.0
 BOT_TEMP = 0.0
-TOP_TEMP = 100.0
+TOP_TEMP = 150.0
 
 FLUX_TOP = None
-FLUX_LEFT = None
+FLUX_LEFT = 0
 FLUX_RIGHT = None
-FLUX_BOT = 0
+FLUX_BOT = None
 
 T_TOTAL = 200
 T_STEP = 0.001
 
-LEN_X = 5
-LEN_Y = 5
-LEN_STEP = 1
+LEN_X = 40
+LEN_Y = 40
+LEN_STEP = 10
 
-K =1
+K = 1
 ALPHA = 1
-ERROR = 0.000005
+ERROR = 0.00000
 
 
 class TempCalculator2D:
