@@ -22,10 +22,10 @@ LEN_Y = 0.5
 LEN_STEP = 0.1
 
 K =1
-C = 897
-D = 2.7 *10**(3)
-ALPHA = 1
-ERROR = 0.0001
+C = 1
+D = 1
+ALPHA = K/(C*D)
+ERROR = 0.0
 
 class TempCalculator2D:
 
