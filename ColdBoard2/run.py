@@ -1,4 +1,5 @@
 from math import sqrt
+import math
 
 import random as rd
 import numpy as np
@@ -6,12 +7,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 LEFT_TEMP = 75.0
-RIGHT_TEMP = 50.0
+RIGHT_TEMP = 75.0
 BOT_TEMP = 0.0
 TOP_TEMP = 100.0
 
-FLUX_TOP = None
-FLUX_LEFT = None
+FLUX_TOP = 0
+FLUX_LEFT = 0
 FLUX_RIGHT = None
 FLUX_BOT = 0
 
@@ -30,6 +31,18 @@ C = 1
 D = 1
 ALPHA = K/(C*D)
 ERROR = 0.0
+
+
+class BorderTemp:
+    def __init__(self, temp, temp_var=None, starting_angle=0, angle_inc=.3):
+        self.temp = temp
+        self.angle = starting_angle  # radians
+        self.angle_inc = angle_inc
+        self.temp_var = temp_var if temp_var is not None else temp * .2
+
+    def get_new_temp(self):
+        self.angle += self.angle_inc
+        return self.temp + math.sin(self.angle) * self.temp_var
 
 
 class TempCalculator2D:
@@ -51,6 +64,7 @@ class TempCalculator2D:
         self.flux_left = flux_left
         self.flux_right = flux_right
         self.flux_bot = flux_bot
+        self.border_calc = BorderTemp(RIGHT_TEMP)
         self.create_matrix_inicial()
         self.matrix_temps()
         self.calculate_flux()
@@ -109,6 +123,7 @@ class TempCalculator2D:
         for t in range(1, n_temps):
             matrix_t1 = [[0 for i in range(self.matrix_x)]
                          for j in range(self.matrix_y)]
+            temp_right = self.border_calc.get_new_temp()
             for i in range(0, self.matrix_x):
                 for j in range(0, self.matrix_y):
                     if i == 0:
@@ -152,8 +167,7 @@ class TempCalculator2D:
 
                     if j == self.matrix_x-1:
                         if FLUX_RIGHT is None:
-                            matrix_t1[i][j] = self.arr_temps[t-1][i][j] * \
-                                              rd.uniform(MIN_MULT, MAX_MULT)
+                            matrix_t1[i][j] = temp_right
                         else:
                             if i != 0 and i != self.matrix_x-1:
                                 matrix_t1[i][j] = self.f_0*(
