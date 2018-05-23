@@ -1,15 +1,16 @@
 from math import sqrt
-import math
 
+import time
+import requests
 import random as rd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-LEFT_TEMP = 75.0
-RIGHT_TEMP = 75.0
+LEFT_TEMP = 0.0
+RIGHT_TEMP = 100.0
 BOT_TEMP = 0.0
-TOP_TEMP = 100.0
+TOP_TEMP = 0.0
 
 FLUX_TOP = 0
 FLUX_LEFT = 0
@@ -17,32 +18,44 @@ FLUX_RIGHT = None
 FLUX_BOT = 0
 
 T_TOTAL = 10
-T_STEP = 0.001
+T_STEP = .1
 
-LEN_X = 0.5
-LEN_Y = 0.5
+LEN_X = 1
+LEN_Y = 1
 LEN_STEP = 0.1
 
 MIN_MULT = .9
 MAX_MULT = 1.1
 
-K = 1
-C = 1
-D = 1
+K = .2
+C = 4
+D = 2
 ALPHA = K/(C*D)
 ERROR = 0.0
 
 
 class BorderTemp:
-    def __init__(self, temp, temp_var=None, starting_angle=0, angle_inc=.3):
-        self.temp = temp
-        self.angle = starting_angle  # radians
-        self.angle_inc = angle_inc
-        self.temp_var = temp_var if temp_var is not None else temp * .2
+    def __init__(self, n_points, host='localhost', port='8888', sleep=0.1):
+        self.server = 'http://{}:{}/'.format(host, port)
+        self.sleep = sleep
+        self.n = n_points
 
     def get_new_temp(self):
-        self.angle += self.angle_inc
-        return self.temp + math.sin(self.angle) * self.temp_var
+        time.sleep(self.sleep)
+        res = requests.get(self.server)
+        temps = res.json()['data']
+        size = len(temps)
+        idx = self.n // size
+        values = []
+        i = 0
+        while len(values) < self.n:
+            if i >= size:
+                values.append(temps[size-1])
+            else:
+                for _ in range(idx):
+                    values.append(temps[i])
+                i += 1
+        return values
 
 
 class TempCalculator2D:
@@ -64,7 +77,7 @@ class TempCalculator2D:
         self.flux_left = flux_left
         self.flux_right = flux_right
         self.flux_bot = flux_bot
-        self.border_calc = BorderTemp(RIGHT_TEMP)
+        self.border_calc = BorderTemp(self.matrix_y)
         self.create_matrix_inicial()
         self.matrix_temps()
         self.calculate_flux()
@@ -167,7 +180,7 @@ class TempCalculator2D:
 
                     if j == self.matrix_x-1:
                         if FLUX_RIGHT is None:
-                            matrix_t1[i][j] = temp_right
+                            matrix_t1[i][j] = temp_right[i]
                         else:
                             if i != 0 and i != self.matrix_x-1:
                                 matrix_t1[i][j] = self.f_0*(
