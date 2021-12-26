@@ -1,186 +1,280 @@
 from math import sqrt
 
+import time
+import requests
+import random as rd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-
-K = 1
-ERROR = 0.0002
-LEFT_TEMP = 75.0
-RIGHT_TEMP = 50.0
+LEFT_TEMP = 0.0
+RIGHT_TEMP = 100.0
 BOT_TEMP = 0.0
-TOP_TEMP = 100.0
-BAR_TEMP = 0
-ALPHA = 1
-D_X = .1
-D_Y = .1
-D_T = 0.001
-FLUX_TOP = None
-FLUX_LEFT = None
+TOP_TEMP = 0.0
+
+FLUX_TOP = 0
+FLUX_LEFT = 0
 FLUX_RIGHT = None
-FLUX_BOT = None
+FLUX_BOT = 0
+
+T_TOTAL = 10
+T_STEP = .1
+
+LEN_X = 1
+LEN_Y = 1
+LEN_STEP = 0.1
+
+MIN_MULT = .9
+MAX_MULT = 1.1
+
+K = .2
+C = 4
+D = 2
+ALPHA = K/(C*D)
+ERROR = 0.0
+
+
+class BorderTemp:
+    def __init__(self, n_points, host='localhost', port='8888', sleep=0.1):
+        self.server = 'http://{}:{}/'.format(host, port)
+        self.sleep = sleep
+        self.n = n_points
+
+    def get_new_temp(self):
+        time.sleep(self.sleep)
+        res = requests.get(self.server)
+        temps = res.json()['data']
+        size = len(temps)
+        idx = self.n // size
+        values = []
+        i = 0
+        while len(values) < self.n:
+            if i >= size:
+                values.append(temps[size-1])
+            else:
+                for _ in range(idx):
+                    values.append(temps[i])
+                i += 1
+        return values
+
 
 class TempCalculator2D:
 
-    def __init__(self, len_x, len_y, x_step, y_step, t_step, alpha, k,
-                 flux_top, flux_left, flux_right, flux_bot):
-        self.x_step, self.y_step = x_step, y_step
-        self.n_steps = int(len_x / x_step)
+    def __init__(self, len_x, len_y, len_step, t_total, t_step, alpha,
+                 k, flux_top, flux_left, flux_right, flux_bot):
+        self.len_step = len_step
         self.len_x, self.len_y = len_x, len_y
+        self.matrix_x = int(len_x/len_step)
+        self.matrix_y = int(len_y/len_step)
         self.t_step = t_step
-        self.f_0 = alpha * t_step / (x_step ** 2)
-        self.create_matrix()
-        self.temp_board = [self.board]
-        self.error = [0]
+        self.t_total = t_total
+        self.f_0 = alpha * t_step / (len_step ** 2)
+        print(self.f_0)
+        if self.f_0 > 0.25:
+            print("f0 muito grande")
         self.k = k
         self.flux_top = flux_top
         self.flux_left = flux_left
         self.flux_right = flux_right
         self.flux_bot = flux_bot
+        self.border_calc = BorderTemp(self.matrix_y)
+        self.create_matrix_inicial()
+        self.matrix_temps()
+        self.calculate_flux()
 
-    def create_matrix(self):
-        self.board = []
-        arr = []
-        arr.append([TOP_TEMP for x in range(self.n_steps + 1)])
-        self.board.append([TOP_TEMP] * (self.n_steps + 1))
-        for i in range(self.n_steps - 1):
-            # miolo
-            arr = [LEFT_TEMP]  # border
-            for j in range(self.n_steps - 1):
-                arr.append(BAR_TEMP)
-            arr.append(RIGHT_TEMP)  # border
-            self.board.append(arr)
-        self.board.append([BOT_TEMP for x in range(self.n_steps + 1)])
+    def create_matrix_inicial(self):
+        self.board = [[0 for i in range(self.matrix_x)]
+                      for j in range(self.matrix_y)]
 
+        if(self.flux_top is not None):
+            for i in range(1, self.matrix_x-1):
+                self.board[0][i] = TOP_TEMP
 
-    def calculate_flux_2d(self, time_target, error_target):
-        curr_id = len(self.temp_board) - 1
-        if curr_id < time_target:
-            _board, _ = self.calculate_temp_2d(time_target, error_target)
         else:
-            _board = self.temp_board[time_target]
+            for i in range(0, self.matrix_x):
+                self.board[0][i] = TOP_TEMP
 
-        flux = []
-        for i in range(self.n_steps):
-            line = []
-            for j in range(self.n_steps):
-                flux_x = -self.k * (_board[i + 1][j] - _board[i - 1][j]) /\
-                         (2 * self.x_step)
-                flux_y = -self.k * (_board[i + 1][j] - _board[i - 1][j]) /\
-                         (2 * self.x_step)
-                line.append(sqrt(flux_x ** 2 + flux_y ** 2))
-            flux.append(line)
-        return flux, error_target
+        if(self.flux_bot is not None):
+            for i in range(1, self.matrix_x-1):
+                self.board[self.matrix_y - 1][i] = BOT_TEMP
+
+        else:
+            for i in range(0, self.matrix_x):
+                self.board[self.matrix_y - 1][i] = BOT_TEMP
+
+        if(self.flux_left is not None):
+            for i in range(1, self.matrix_y-1):
+                self.board[i][0] = LEFT_TEMP
+
+        else:
+            for i in range(0, self.matrix_y):
+                self.board[i][0] = LEFT_TEMP
+
+        if(self.flux_right is not None):
+            for i in range(1, self.matrix_y-1):
+                self.board[i][self.matrix_x - 1] = RIGHT_TEMP
+
+        else:
+            for i in range(0, self.matrix_y):
+                self.board[i][self.matrix_x - 1] = RIGHT_TEMP
+
+        for i in self.board:
+            print(i)
+            print('\n')
+
+    def matrix_temps(self):
+        self.arr_temps = []
+
+        curr_err = 10
+        if self.t_total < 1:
+            self.t_total *= 10000
+            self.t_step *= 10000
+
+        n_temps = int(self.t_total/self.t_step)
+        self.arr_temps.append(self.board)
+
+        for t in range(1, n_temps):
+            matrix_t1 = [[0 for i in range(self.matrix_x)]
+                         for j in range(self.matrix_y)]
+            temp_right = self.border_calc.get_new_temp()
+            for i in range(0, self.matrix_x):
+                for j in range(0, self.matrix_y):
+                    if i == 0:
+                        if FLUX_TOP is None:
+                            matrix_t1[i][j] = self.arr_temps[t-1][i][j] * \
+                                              rd.uniform(MIN_MULT, MAX_MULT)
+                        else:
+                            if j != 0 and j != self.matrix_x-1:
+                                matrix_t1[i][j] = self.f_0*(
+                                    2*self.arr_temps[t-1][i+1][j] -
+                                    2*self.len_step*self.flux_top +
+                                    self.arr_temps[t-1][i][j+1] +
+                                    self.arr_temps[t-1][i][j-1]) + \
+                                    (1-4*self.f_0)*self.arr_temps[t-1][i][j]
+
+                    if j == 0:
+                        if FLUX_LEFT is None:
+                            matrix_t1[i][j] = self.arr_temps[t-1][i][j] * \
+                                              rd.uniform(MIN_MULT, MAX_MULT)
+                        else:
+                            if i != 0 and i != self.matrix_x-1:
+                                matrix_t1[i][j] = self.f_0*(
+                                    2*self.arr_temps[t-1][i][j+1] -
+                                    2*self.len_step*self.flux_left +
+                                    self.arr_temps[t-1][i-1][j] +
+                                    self.arr_temps[t-1][i+1][j]) + \
+                                    (1-4*self.f_0)*self.arr_temps[t-1][i][j]
+
+                    if i == self.matrix_y-1:
+                        if FLUX_BOT is None:
+                            matrix_t1[i][j] = self.arr_temps[t-1][i][j] * \
+                                              rd.uniform(MIN_MULT, MAX_MULT)
+                        else:
+                            if i != j and j != 0:
+                                matrix_t1[i][j] = self.f_0*(
+                                    2*self.arr_temps[t-1][i-1][j] -
+                                    2*self.len_step*self.flux_bot +
+                                    self.arr_temps[t-1][i][j-1] +
+                                    self.arr_temps[t-1][i][j+1]) + \
+                                    (1-4*self.f_0)*self.arr_temps[t-1][i][j]
+
+                    if j == self.matrix_x-1:
+                        if FLUX_RIGHT is None:
+                            matrix_t1[i][j] = temp_right[i]
+                        else:
+                            if i != 0 and i != self.matrix_x-1:
+                                matrix_t1[i][j] = self.f_0*(
+                                    2*self.arr_temps[t-1][i][j-1] -
+                                    2*self.len_step*self.flux_right +
+                                    self.arr_temps[t-1][i+1][j] +
+                                    self.arr_temps[t-1][i-1][j]) + \
+                                    (1-4*self.f_0)*self.arr_temps[t-1][i][j]
+
+                    if i != 0 and i != self.matrix_x-1:
+                        if j != 0 and j != self.matrix_y-1:
+                            matrix_t1[i][j] = self.f_0*(
+                                self.arr_temps[t-1][i][j+1] +
+                                self.arr_temps[t-1][i][j-1] +
+                                self.arr_temps[t-1][i-1][j] +
+                                self.arr_temps[t-1][i+1][j]) + \
+                                (1-4*self.f_0)*self.arr_temps[t-1][i][j]
+
+                    dif = abs(self.arr_temps[t-1][i][j] - matrix_t1[i][j])
+                    if dif < curr_err and dif != 0:
+                        curr_err = dif
+
+            self.arr_temps.append(matrix_t1)
+
+            if curr_err <= ERROR:
+                break
+
+    def calculate_flux(self):
+        self.arr_flux = []
+        for t in range(len(self.arr_temps)):
+            matrix_f = [[0 for i in range(self.matrix_x)]
+                        for j in range(self.matrix_y)]
+            for i in range(0, self.matrix_x):
+                for j in range(0, self.matrix_y):
+                    flux_x = -1
+                    flux_y = -1
+                    if i == 0:
+                        if FLUX_TOP is not None:
+                            if j != 0 and j != self.matrix_x-1:
+                                flux_x = -self.k*(
+                                    self.arr_temps[t-1][i][j+1] -
+                                    self.arr_temps[t-1][i][j-1]) / \
+                                    (2*self.len_step)
+                                flux_y = self.flux_top
+
+                    if j == 0 and i != 0 and i != self.matrix_x-1:
+                        if FLUX_LEFT is not None:
+                            flux_y = -self.k*(
+                                self.arr_temps[t-1][i+1][j] -
+                                self.arr_temps[t-1][i-1][j]) / \
+                                (2*self.len_step)
+                            flux_x = self.flux_left
+
+                    if i == self.matrix_y-1 and i != j and j != 0:
+                        if FLUX_BOT is not None:
+                            flux_x = -self.k*(
+                                self.arr_temps[t-1][i][j+1] -
+                                self.arr_temps[t-1][i][j-1]) / \
+                                (2*self.len_step)
+                            flux_y = self.flux_bot
+
+                    if j == self.matrix_x-1 and i != 0 and \
+                       i != self.matrix_y-1:
+                        if FLUX_RIGHT is not None:
+                            flux_y = -self.k*(
+                                self.arr_temps[t-1][i+1][j] -
+                                self.arr_temps[t-1][i-1][j]) / \
+                                (2*self.len_step)
+                            flux_x = self.flux_right
+
+                    if i != 0 and i != self.matrix_x-1:
+                        if j != 0 and j != self.matrix_y-1:
+                            flux_x = -self.k*(
+                                self.arr_temps[t-1][i][j+1] -
+                                self.arr_temps[t-1][i][j-1]) / \
+                                (2*self.len_step)
+                            flux_y = -self.k*(
+                                self.arr_temps[t-1][i+1][j] -
+                                self.arr_temps[t-1][i-1][j]) / \
+                                (2*self.len_step)
+
+                    if(flux_x != -1 or flux_y != -1):
+                        flux_p = (sqrt(flux_x**2 + flux_y**2))
+                        matrix_f[i][j] = flux_p
+
+            self.arr_flux.append(matrix_f)
 
 
-    def calculate_temp_2d(self, time_target, error_target):
-        curr_id = len(self.temp_board) - 1
-        if curr_id < time_target:
-            for j in range(curr_id, time_target):
-                if self.calc(j, error_target):
-                    time_target = j
-                    break
-        return self.temp_board[time_target], self.error[time_target]
+MATRIX_TESTE = TempCalculator2D(LEN_X, LEN_Y, LEN_STEP, T_TOTAL, T_STEP, ALPHA,
+                                K, FLUX_TOP, FLUX_LEFT, FLUX_RIGHT, FLUX_BOT)
 
-
-    def calc(self, j, error_target):
-        _board = self.temp_board[j]
-        flux, _ = self.calculate_flux_2d(j - 1, error_target)
-        top = [TOP_TEMP]
-        for i in range(1, self.n_steps):
-            if self.flux_top != None:
-                tmp = self.f_0 * (2 * _board[1][i] - 2 * self.y_step * self.flux_top +
-                                _board[0][i + 1] + _board[0][i - 1]) + \
-                                (1 - 4 * self.f_0) * _board[0][i]
-            else:
-                tmp = TOP_TEMP
-            top.append(tmp)
-        top.append(TOP_TEMP)
-        board = [top]
-        for i in range(1, self.n_steps):
-            if self.flux_left != None:
-                left = self.f_0 * (2 * _board[i][1] - 2 * self.x_step * self.flux_left +
-                                   _board[i + 1][0] + _board[i - 1][0]) + \
-                                   (1 - 4 * self.f_0) * _board[i][0]
-            else:
-                left = LEFT_TEMP
-            arr = [left]
-            max_error = -1
-            for z in range(1, self.n_steps):
-                t_ij = self.f_0 * (_board[i + 1][z] + _board[i - 1][z] +
-                                   _board[i][z + 1] + _board[i][z - 1]) +\
-                                   (1 - 4 * self.f_0) * _board[i][z]
-                # t_ij > 0 to avoid division by zero
-                if t_ij > 0:
-                    curr_error = abs((t_ij - _board[i][z]) / t_ij)
-                    if curr_error > max_error:
-                        max_error = curr_error
-                arr.append(t_ij)
-
-            if self.flux_right != None:
-                z = self.n_steps
-                right = self.f_0 * (2 * _board[i][z] - 2 * self.x_step *
-                                    self.flux_right + _board[i + 1][z] +
-                                    _board[i - 1][z]) + \
-                                    (1 + 4 * self.f_0) * _board[i][z]
-            else:
-                right = RIGHT_TEMP
-            arr.append(right)
-            board.append(arr)
-            self.error.append(max_error if max_error > 0 else 0)
-
-        bot = [BOT_TEMP]
-        z = self.n_steps
-        for i in range(1, self.n_steps):
-            if self.flux_bot != None:
-                tmp = self.f_0 * (2 * _board[z - 1][i] - 2 * self.y_step *
-                                  self.flux_bot + _board[z][i + 1] +
-                                  _board[z][i - 1]) + \
-                                  (1 + 4 * self.f_0) * _board[z][i]
-            else:
-                tmp = BOT_TEMP
-            bot.append(tmp)
-        bot.append(BOT_TEMP)
-        board.append(bot)
-        self.temp_board.append(board)
-        return error_target <= max_error
-
-class TempCalculator:
-
-    def __init__(self, bar_len, bar_step, time_step, alpha):
-        self.bar_len = bar_len
-        self.bar_step = bar_step  # h
-        self.n_steps = bar_len // bar_step
-        self.time_step = time_step
-        self.alpha = alpha
-        self.lamb = alpha * self.time_step / (self.bar_step ** 2)
-        self.gen_array()
-        self.temp_array = [self.bar_array]  # copy by value
-
-
-    def gen_array(self):
-        self.bar_array = []
-        self.bar_array.append(BORDER_TEMP)
-        for i in range(self.n_steps - 2):
-            # steps - 1 because gabi said soo
-            self.bar_array.append(BAR_TEMP)
-        self.bar_array.append(BORDER_TEMP)
-
-
-    def calc_temp_1d(self, time_target):
-        curr_id = len(self.temp_array) - 1
-        if curr_id < time_target:
-            for j in range(curr_id, time_target):
-                _list = [BORDER_TEMP]
-                for i in range(1, self.n_steps - 1):
-                    u_i = self.temp_array[j][i] + self.lamb * \
-                          (self.temp_array[j][i + 1] - 2 * self.temp_array[j][i] +
-                           self.temp_array[j][i - 1])
-                    _list.append(u_i)
-                _list.append(BORDER_TEMP)
-                self.temp_array.append(_list)
-        return self.temp_array[time_target]
+for i in MATRIX_TESTE.arr_temps[-1]:
+    print(i)
+print('\n')
 
 
 def plot_color_gradients(gradient):
@@ -188,32 +282,29 @@ def plot_color_gradients(gradient):
     for x in range(len(gradient)):
         for y in range(len(gradient[0])):
             final[x, y] = gradient[x][y]
-    ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'))
+    return ax.imshow(final, aspect='equal', cmap=plt.get_cmap('hot'),
+                     vmin=0, vmax=100)
 
-calculator = TempCalculator2D(.4, .4, D_X, D_Y, D_T, ALPHA, K,
-                              FLUX_TOP, FLUX_LEFT, FLUX_RIGHT, FLUX_BOT)
-temps = []
-for i in range(1, 201, 10):
-    m = calculator.calculate_temp_2d(i, ERROR)
-    temps.append(m[0])  # m[1] represents it's error
+
+def animate(i):
+    plot_color_gradients(MATRIX_TESTE.arr_temps[i])
+
+
+def init():
+    im = plot_color_gradients(MATRIX_TESTE.arr_temps[0])
+    plt.colorbar(im)
 
 
 fig, ax = plt.subplots()
 fig.subplots_adjust(top=0.9, bottom=0, left=0, right=0.99)
-ax.set_title('Titulo', fontsize=14)
+ax.set_title('Temperatura na Placa ao Longo do Tempo', fontsize=14)
 ax.set_axis_off()
 
-def animate(i):
-    plot_color_gradients(temps[i])
-
-def init():
-    plot_color_gradients(temps[0])
-
-
 init()
-ani = animation.FuncAnimation(fig, animate, np.arange(1, len(temps)),
-                              interval=200, repeat=True)
 
-print(temps[-1])
-# print(calculator.calculate_flux_2d(200, ERROR)[0])
+ani = animation.FuncAnimation(fig, animate,
+                              np.arange(0,
+                                        int(3*(len(MATRIX_TESTE.arr_temps))
+                                            / 4), 1),
+                              interval=200, repeat=True)
 plt.show()
