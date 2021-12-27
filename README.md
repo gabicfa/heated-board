@@ -49,4 +49,4 @@ The first four variables correspond to the initial temperatures of the left, rig
 
 samples of simulations:
 
-<img src="img/img1.png" width="450" height="400">
+<img src="img/img1.png" width="350" height="450">
