@@ -1,4 +1,4 @@
-# heated-board
+# Heated board
 
 The second project for Insper's "Heat Transfer and Solids Mechanics" module consisted of making a thermal model simulation program on a board (two-dimensional surface). The group chose to use python with the NumPy library for optimized numerical manipulation and matplotlib for plotting the graphics.
 
@@ -50,3 +50,5 @@ The first four variables correspond to the initial temperatures of the left, rig
 samples of simulations:
 
 <img src="img/img1.png" width="300" height="450">
+
+Created at 2017.1
