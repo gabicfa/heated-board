@@ -5,7 +5,7 @@ The second project for Insper's "Heat Transfer and Solids Mechanics" module cons
 ## running the program
 
 ```
-python 3 run.py
+python3 run.py
 ```
 
 
